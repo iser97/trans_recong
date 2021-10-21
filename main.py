@@ -1,4 +1,6 @@
 import os
+import sys
+import logging
 import matplotlib as mpl
 if os.environ.get('DISPLAY','')=='':
     print('no display found. Using non-interactive Agg backend')
@@ -12,10 +14,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-import logging
+from transformers import HfArgumentParser
 
 from scripts.model.transformer_single_layer import my_transformer
 from scripts.data.dataset_mnist_8_8 import DatasetMnist
+from scripts.config.arguments import Arguments
+
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
     datefmt="%m/%d/%Y %H:%M:%S",
@@ -69,7 +73,7 @@ def test_step(model, data_loader):
 def train_step(model, optimizer, loss_fn, train_loader, test_loader):
     step = make_train_step(model, loss_fn, optimizer)
     losses = []
-    for epoch in range(n_epochs):
+    for epoch in range(args.n_epochs):
         epoch_loss = 0
         test_step(model, test_loader)
         for x_batch, y_batch in train_loader:
@@ -82,22 +86,26 @@ def train_step(model, optimizer, loss_fn, train_loader, test_loader):
         test_step(model, test_loader)
 
 def main():
-    tModel = my_transformer(data_dim, data_dim, seq_length, n_heads, data_dim, num_classes).to(device)
-    optimizer = optim.SGD(tModel.parameters(),lr=lr,momentum=mom)
+    data_dim = args.data_split_dim*args.data_split_dim
+    seq_length = int(args.data_dimension**2 / data_dim)   # through the data_split_dim can split the mnist picture to sub blocks, the number of sub blocks stands for the transformers' sequence length
+
+    tModel = my_transformer(data_dim, data_dim, seq_length, args.n_heads, data_dim, args.num_classes).to(device)
+    # optimizer = optim.SGD(tModel.parameters(),lr=lr,momentum=mom)
+    optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()
 
-    train_dataset = DatasetMnist(mode='test', split_dim=data_split_dim, data_dimension=data_dimension)
-    test_dataset = DatasetMnist(mode='test', split_dim=data_split_dim, data_dimension=data_dimension)
+    train_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
+    test_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=batch_size, 
+        batch_size=args.batch_size, 
         shuffle=True, 
         num_workers=0, 
         drop_last=False
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=batch_size,
+        batch_size=args.batch_size,
         shuffle=False,
         num_workers=0,
         drop_last=False,
@@ -106,20 +114,15 @@ def main():
 
 
 if __name__ == '__main__':
-
+    parser = HfArgumentParser((Arguments))
+    if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
+        # If we pass only one argument to the script and it's the path to a json file,
+        # let's parse it to get our arguments.
+        args, = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+    else:
+        args, = parser.parse_args_into_dataclasses()
+    
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    ### training parameters
-    batch_size = 256
-    lr = 1e-4
-    mom = 0.91
-    n_epochs = 2000
-    ### data and model parameters
-    data_split_dim = 2
-    data_dimension = 8 # mnist data is reshaped as 8*8
-    data_dim = data_split_dim*data_split_dim
-    seq_length = int(8*8 / data_dim)
-    n_heads = 4
-    num_classes = 10
 
     main()
 
