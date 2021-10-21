@@ -17,6 +17,7 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import HfArgumentParser
 
 from scripts.model.transformer_single_layer import my_transformer
+from scripts.model.linear_model import LinearModel
 from scripts.data.dataset_mnist_8_8 import DatasetMnist
 from scripts.config.arguments import Arguments
 
@@ -89,7 +90,8 @@ def main():
     data_dim = args.data_split_dim*args.data_split_dim
     seq_length = int(args.data_dimension**2 / data_dim)   # through the data_split_dim can split the mnist picture to sub blocks, the number of sub blocks stands for the transformers' sequence length
 
-    tModel = my_transformer(data_dim, data_dim, seq_length, args.n_heads, data_dim, args.num_classes).to(device)
+    # tModel = my_transformer(data_dim, data_dim, seq_length, args.n_heads, data_dim, args.num_classes).to(device)
+    tModel = LinearModel(data_dim, data_dim, n_seq=seq_length, out_dim=args.num_classes).to(device)
     # optimizer = optim.SGD(tModel.parameters(),lr=lr,momentum=mom)
     optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()
