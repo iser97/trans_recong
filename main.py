@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import matplotlib as mpl
+from torch._C import Value
 if os.environ.get('DISPLAY','')=='':
     print('no display found. Using non-interactive Agg backend')
     mpl.use("agg")
@@ -89,9 +90,12 @@ def train_step(model, optimizer, loss_fn, train_loader, test_loader):
 def main():
     data_dim = args.data_split_dim*args.data_split_dim
     seq_length = int(args.data_dimension**2 / data_dim)   # through the data_split_dim can split the mnist picture to sub blocks, the number of sub blocks stands for the transformers' sequence length
-
-    # tModel = my_transformer(data_dim, data_dim, seq_length, args.n_heads, data_dim, args.num_classes).to(device)
-    tModel = LinearModel(data_dim, data_dim, n_seq=seq_length, out_dim=args.num_classes).to(device)
+    if args.model_type == 'transformer':
+        tModel = my_transformer(data_dim, data_dim, seq_length, args.n_heads, data_dim, args.num_classes).to(device)
+    elif args.model_type == 'linear':
+        tModel = LinearModel(data_dim, data_dim, n_seq=seq_length, out_dim=args.num_classes).to(device)
+    else:
+        raise ValueError("{} model type is not implemented".format(args.model_type))
     # optimizer = optim.SGD(tModel.parameters(),lr=lr,momentum=mom)
     optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()

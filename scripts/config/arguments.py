@@ -24,3 +24,6 @@ class Arguments:
     num_classes: Optional[int] = field(
         default=10, metadata={"help": "classes for mnist is 10"}
     )
+    model_type: Optional[str] = field(
+        default='transformer', metadata={"help": "model type choices: transformer or linear"}
+    )
