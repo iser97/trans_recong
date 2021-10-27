@@ -13,7 +13,7 @@ import torch
 from torch.utils.data.dataset import Dataset
 from torch.utils.data.dataloader import DataLoader
 
-from scripts.utils.utils import map
+from scripts.utils.utils import map, mat_write
 
 class DatasetMnist(Dataset):
     '''
@@ -32,8 +32,8 @@ class DatasetMnist(Dataset):
             self.data = open('./cache/train_data.txt', mode='r', encoding='utf-8')
             self.label = open('./cache/train_label.txt', mode='r', encoding='utf-8')
         elif mode == 'test':
-            self.data = open('./cache/train_data.txt', mode='r', encoding='utf-8')
-            self.label = open('./cache/train_label.txt', mode='r', encoding='utf-8')
+            self.data = open('./cache/test_data.txt', mode='r', encoding='utf-8')
+            self.label = open('./cache/test_label.txt', mode='r', encoding='utf-8')
         else:
             raise ValueError('{} mode not implemented'.format(mode))
         self.data = np.array(json.loads(self.data.readlines()[0]))
@@ -41,6 +41,9 @@ class DatasetMnist(Dataset):
         assert len(self.data) != self.label
         self.sample_size = len(self.label) 
         self.data_split()
+        ### 如果需要将数据存储为.mat格式，调用该函数
+        mat_write(self.data, mode)
+
     
     def data_split(self,):
         def data_split(input):
