@@ -21,6 +21,7 @@ from scripts.model.transformer_single_layer import my_transformer
 from scripts.model.linear_model import LinearModel
 from scripts.data.dataset_mnist_8_8 import DatasetMnist
 from scripts.config.arguments import Arguments
+from scripts.utils.utils import torch_save_model
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -53,15 +54,17 @@ def make_train_step(model, loss_fn, optimizer):
 def test_step(model, data_loader):
     preds = []
     labels = []
-    for x_batch, y_batch in data_loader:
-        x_batch = x_batch.type(torch.float32)
-        x_batch = x_batch.to(device)
-        y_batch = y_batch.to(device)
-        pred = model(x_batch)
-        pred = pred.argmax(dim=1)
-        pred = pred.cpu().tolist()
-        preds = preds + pred
-        labels = labels + y_batch.cpu().tolist()
+    model.eval()
+    with torch.no_grad():
+        for x_batch, y_batch in data_loader:
+            x_batch = x_batch.type(torch.float32)
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
+            pred = model(x_batch)
+            pred = pred.argmax(dim=1)
+            pred = pred.cpu().tolist()
+            preds = preds + pred
+            labels = labels + y_batch.cpu().tolist()
     confusion_matrix = skm.confusion_matrix(labels, preds)
     acc = skm.accuracy_score(labels, preds)
     recall = skm.recall_score(labels, preds, average='macro')
@@ -71,13 +74,15 @@ def test_step(model, data_loader):
     logger.info(f"ACC = {acc}")
     logger.info(f"recall = {recall}")
     logger.info(f"f1 = {f1}")
+    return acc
 
 def train_step(model, optimizer, loss_fn, train_loader, test_loader):
     step = make_train_step(model, loss_fn, optimizer)
     losses = []
+    best_acc = 0
     for epoch in range(args.n_epochs):
         epoch_loss = 0
-        test_step(model, test_loader)
+        model.train()
         for x_batch, y_batch in train_loader:
             x_batch = x_batch.type(torch.float32)
             x_batch = x_batch.to(device)
@@ -85,7 +90,10 @@ def train_step(model, optimizer, loss_fn, train_loader, test_loader):
             loss, _ = step(x_batch, y_batch)
             epoch_loss += loss
         losses.append(epoch_loss)
-        test_step(model, test_loader)
+        now_acc = test_step(model, test_loader)
+        if now_acc > best_acc:
+            best_acc = now_acc
+            torch_save_model(model, save_root="./cache/", best_acc=best_acc)
 
 def main():
     data_dim = args.data_split_dim*args.data_split_dim

@@ -27,7 +27,6 @@ class DatasetMnist(Dataset):
         if self.data_dimension % self.split_dim != 0:  
             raise ValueError('split dimension not match the data dimension')
         self.split_iter = int(self.data_dimension // self.split_dim)
-
         if mode == 'train':
             self.data = open('./cache/train_data.txt', mode='r', encoding='utf-8')
             self.label = open('./cache/train_label.txt', mode='r', encoding='utf-8')
@@ -43,6 +42,12 @@ class DatasetMnist(Dataset):
         self.data_split()
         ### 如果需要将数据存储为.mat格式，调用该函数
         # mat_write(self.data, mode)
+        w_data = open('{}_data.txt'.format(mode), mode='w', encoding='utf-8')
+        w_label = open('{}_label.txt'.format(mode), mode='w', encoding='utf-8')
+        self.data_w = [item[0].tolist() for item in self.data]
+        self.label_w = [item[1] for item in self.data]
+        w_data.writelines(json.dumps(self.data_w))
+        w_label.writelines(json.dumps(self.label_w))
 
     
     def data_split(self,):

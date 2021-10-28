@@ -1,3 +1,5 @@
+import os
+import torch
 import scipy.io
 from multiprocess.dummy import Pool as ThreadPool
 
@@ -18,3 +20,12 @@ def mat_write(total_data, mode):
         dic_label[str(index)] = label
     scipy.io.savemat('data_split_{}.mat'.format(mode), dic_data)
     scipy.io.savemat('label_split_{}.mat'.format(mode), dic_label) 
+
+def torch_save_model(
+    model,
+    save_root,
+    **kwargs
+    ):
+    state = {'model_state_dict':model.state_dict()}
+    state = dict(state, **kwargs)
+    torch.save(state, os.path.join(save_root, "checkpoint.pth.tar"))
