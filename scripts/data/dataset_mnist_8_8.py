@@ -42,7 +42,7 @@ class DatasetMnist(Dataset):
         self.sample_size = len(self.label) 
         self.data_split()
         ### 如果需要将数据存储为.mat格式，调用该函数
-        mat_write(self.data, mode)
+        # mat_write(self.data, mode)
 
     
     def data_split(self,):

@@ -100,7 +100,7 @@ def main():
     optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()
 
-    train_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
+    train_dataset = DatasetMnist(mode='train', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     test_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     train_loader = DataLoader(
         train_dataset, 

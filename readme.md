@@ -10,7 +10,7 @@ scripts: total scripts
 
 training and test run the following command
 ```bash
-python main.py --lr 0.0001 --batch_size 256 --n_epochs 200 --data_split_dim 4 --data_dimension 8 --n_heads 4 --model_type linear
+python main.py --lr 0.001 --batch_size 256 --n_epochs 50 --data_split_dim 4 --data_dimension 8 --n_heads 1 --model_type transformer
 ```
 
 
