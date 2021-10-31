@@ -28,4 +28,4 @@ def torch_save_model(
     ):
     state = {'model_state_dict':model.state_dict()}
     state = dict(state, **kwargs)
-    torch.save(state, os.path.join(save_root, "checkpoint.pth.tar"))
+    torch.save(state, save_root)

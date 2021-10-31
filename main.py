@@ -1,5 +1,6 @@
 import os
 import sys
+import copy
 import logging
 import matplotlib as mpl
 from torch._C import Value
@@ -76,6 +77,30 @@ def test_step(model, data_loader):
     logger.info(f"f1 = {f1}")
     return acc
 
+def test_noise(
+    model, 
+    model_path, 
+    data_loader, 
+    gama_scale=0.01):
+    '''
+    Paramters:
+        model: a deep copy model for test anti-noise
+        model_path:
+        data_loader:
+        gama_scale: "gama_scale" is used to scale the noise which will add to the model weight
+    '''
+    model_state_dict = torch.load(model_path)
+    if type(model_state_dict) == dict:
+        model_state_dict = model_state_dict["model_state_dict"]
+    parameters_name_lst = list(model_state_dict.keys())
+    for parameter_name in parameters_name_lst:
+        weight_size = model_state_dict[parameter_name].size()
+        model_state_dict[parameter_name] = model_state_dict[parameter_name] + gama_scale * torch.randn(weight_size, device=model_state_dict[parameter_name].device)
+    model.load_state_dict(model_state_dict)
+    logger.info("Anti-Noise Test")
+    acc = test_step(model, data_loader)
+    return acc
+
 def train_step(model, optimizer, loss_fn, train_loader, test_loader):
     step = make_train_step(model, loss_fn, optimizer)
     losses = []
@@ -91,9 +116,11 @@ def train_step(model, optimizer, loss_fn, train_loader, test_loader):
             epoch_loss += loss
         losses.append(epoch_loss)
         now_acc = test_step(model, test_loader)
+        
         if now_acc > best_acc:
             best_acc = now_acc
-            torch_save_model(model, save_root="./cache/", best_acc=best_acc)
+            torch_save_model(model, save_root=args.model_save_root, best_acc=best_acc)
+    now_acc_noise = test_noise(copy.deepcopy(model), args.model_save_root, test_loader, gama_scale=0.0001)
 
 def main():
     data_dim = args.data_split_dim*args.data_split_dim

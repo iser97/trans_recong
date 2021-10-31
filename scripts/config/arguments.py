@@ -27,3 +27,6 @@ class Arguments:
     model_type: Optional[str] = field(
         default='transformer', metadata={"help": "model type choices: transformer or linear"}
     )
+    model_save_root: Optional[str] = field(
+        default="./cache/checkpoint.pth.tar", metadata={"help": "model save root"}
+    )
