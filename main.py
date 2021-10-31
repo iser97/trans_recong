@@ -120,7 +120,7 @@ def train_step(model, optimizer, loss_fn, train_loader, test_loader):
         if now_acc > best_acc:
             best_acc = now_acc
             torch_save_model(model, save_root=args.model_save_root, best_acc=best_acc)
-    now_acc_noise = test_noise(copy.deepcopy(model), args.model_save_root, test_loader, gama_scale=0.0001)
+    now_acc_noise = test_noise(copy.deepcopy(model), args.model_save_root, test_loader, gama_scale=args.gama_scale)
 
 def main():
     data_dim = args.data_split_dim*args.data_split_dim
