@@ -30,3 +30,6 @@ class Arguments:
     model_save_root: Optional[str] = field(
         default="./cache/checkpoint.pth.tar", metadata={"help": "model save root"}
     )
+    gama_scale: float = field(
+        default=0.0001, metadata={"help": "rate to scale noise weight"}
+    )
