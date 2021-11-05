@@ -20,7 +20,8 @@ from transformers import HfArgumentParser
 
 from scripts.model.transformer_single_layer import my_transformer
 from scripts.model.linear_model import LinearModel
-from scripts.data.dataset_mnist_8_8 import DatasetMnist
+from scripts.data.dataset_mnist import DatasetMnist
+from scripts.data.mnist_preprocess import data_preprocess
 from scripts.config.arguments import Arguments
 from scripts.utils.utils import torch_save_model
 
@@ -135,7 +136,7 @@ def main():
     optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()
 
-    train_dataset = DatasetMnist(mode='train', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
+    train_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     test_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     train_loader = DataLoader(
         train_dataset, 
@@ -162,7 +163,11 @@ if __name__ == '__main__':
         args, = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         args, = parser.parse_args_into_dataclasses()
-    
+
+    check_root = os.path.join(args.data_root, 'train_data_{}'.format(args.data_dimension))
+    if not os.path.exists(check_root):
+        data_preprocess(args)
+        
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     main()

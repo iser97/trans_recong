@@ -1,5 +1,12 @@
 # Transformers single layer training on Mnist
 
+## data preprocess
+At first, we need run script `./scripts/data/mnist_preprocess.py` to get pre-processed data
+
+```bash
+python ./scripts/data/mnist_preprocess.py --data_size 28
+```
+
 ## file dir
 
 cache: root for saving data, the 'test_data.txt', 'train_data.txt', 'test_label.txt', 'train_label.txt' is saved in this directory.
