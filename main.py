@@ -135,8 +135,8 @@ def main():
     # optimizer = optim.SGD(tModel.parameters(),lr=lr,momentum=mom)
     optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()
-
-    train_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
+    logger.info("******DataSet Initialize******")
+    train_dataset = DatasetMnist(mode='train', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     test_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     train_loader = DataLoader(
         train_dataset, 
@@ -167,7 +167,7 @@ if __name__ == '__main__':
     check_root = os.path.join(args.data_root, 'train_data_{}'.format(args.data_dimension))
     if not os.path.exists(check_root):
         data_preprocess(args)
-        
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     main()
