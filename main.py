@@ -20,8 +20,8 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import HfArgumentParser
 
 from scripts.model.transformer_single_layer import my_transformer
-from scripts.model.linear_model import LinearModel
-from scripts.data.dataset_mnist import DatasetMnist
+from scripts.model.linear_model import LinearModel, LinearModel2
+from scripts.data.dataset_mnist import DatasetMnist, DatasetMnist_noSplit
 from scripts.data.mnist_preprocess import data_preprocess
 from scripts.config.arguments import Arguments
 from scripts.utils.utils import torch_save_model
@@ -54,10 +54,13 @@ def make_train_step(model, loss_fn, optimizer):
     # Returns the function that will be called inside the train loop
     return train_step
 
-def test_step(model, data_loader):
+def test_step(model, data_loader, print_time=False):
     preds = []
     labels = []
     model.eval()
+    if print_time:
+        logger.info("******Into Test Step******")
+        start_time = time.time()
     with torch.no_grad():
         for x_batch, y_batch in data_loader:
             x_batch = x_batch.type(torch.float32)
@@ -68,22 +71,27 @@ def test_step(model, data_loader):
             pred = pred.cpu().tolist()
             preds = preds + pred
             labels = labels + y_batch.cpu().tolist()
-    confusion_matrix = skm.confusion_matrix(labels, preds)
+    if print_time:
+        end_time = time.time()
+        logger.info(f"Test Used Time = {end_time-start_time}")
+    # confusion_matrix = skm.confusion_matrix(labels, preds)
     acc = skm.accuracy_score(labels, preds)
-    recall = skm.recall_score(labels, preds, average='macro')
-    f1 = skm.f1_score(np.array(labels), np.array(preds), average='macro')
+    # recall = skm.recall_score(labels, preds, average='macro')
+    # f1 = skm.f1_score(np.array(labels), np.array(preds), average='macro')
 
-    logger.info(f"confusion_matrix = {confusion_matrix}")
+    # logger.info(f"confusion_matrix = {confusion_matrix}")
     logger.info(f"ACC = {acc}")
-    logger.info(f"recall = {recall}")
-    logger.info(f"f1 = {f1}")
+    # logger.info(f"recall = {recall}")
+# logger.info(f"f1 = {f1}")
     return acc
 
 def test_noise(
     model, 
     model_path, 
     data_loader, 
-    gama_scale=0.01):
+    gama_scale=0.01,
+    N_static = 1, 
+    print_time=False):
     '''
     Paramters:
         model: a deep copy model for test anti-noise
@@ -91,17 +99,22 @@ def test_noise(
         data_loader:
         gama_scale: "gama_scale" is used to scale the noise which will add to the model weight
     '''
-    model_state_dict = torch.load(model_path)
-    if type(model_state_dict) == dict:
-        model_state_dict = model_state_dict["model_state_dict"]
-    parameters_name_lst = list(model_state_dict.keys())
-    for parameter_name in parameters_name_lst:
-        weight_size = model_state_dict[parameter_name].size()
-        model_state_dict[parameter_name] = model_state_dict[parameter_name] + gama_scale * torch.randn(weight_size, device=model_state_dict[parameter_name].device)
-    model.load_state_dict(model_state_dict)
-    logger.info("Anti-Noise Test")
-    acc = test_step(model, data_loader)
-    return acc
+    total_acc = 0.
+    for i in range(N_static):
+        model_state_dict = torch.load(model_path)
+        if type(model_state_dict) == dict:
+            model_state_dict = model_state_dict["model_state_dict"]
+        parameters_name_lst = list(model_state_dict.keys())
+        for parameter_name in parameters_name_lst:
+            if parameter_name == 'positionAdd.pe':
+                continue
+            weight_size = model_state_dict[parameter_name].size()
+            model_state_dict[parameter_name] = model_state_dict[parameter_name] + gama_scale * (model_state_dict[parameter_name].max() - model_state_dict[parameter_name].min())*torch.randn(weight_size, device=model_state_dict[parameter_name].device)
+        model.load_state_dict(model_state_dict)
+        logger.info("Weight non-ideal test with strength of {}".format(gama_scale))
+        acc = test_step(model, data_loader,print_time)
+        total_acc += acc
+    return total_acc/N_static
 
 def train_step(model, optimizer, loss_fn, train_loader, test_loader):
     step = make_train_step(model, loss_fn, optimizer)
@@ -122,23 +135,48 @@ def train_step(model, optimizer, loss_fn, train_loader, test_loader):
             best_acc = now_acc
             torch_save_model(model, save_root=args.model_save_root, best_acc=best_acc)
     
-    now_acc_noise = test_noise(copy.deepcopy(model), args.model_save_root, test_loader, gama_scale=args.gama_scale)
+    model_path = args.model_save_root
+    acc_dict = {}
+    acc = test_noise(copy.deepcopy(model), model_path, test_loader, gama_scale=0., print_time = True)
+    acc_dict[str(0)] = acc
+    for i in range(20):
+        acc = test_noise(copy.deepcopy(model), model_path, test_loader, gama_scale=(i+1)*0.005,N_static=30)
+        acc_dict[str((i+1)*0.005)] = acc
+   
+    print(acc_dict)
 
 def main():
     data_dim = args.data_split_dim*args.data_split_dim
     seq_length = int(args.data_dimension**2 / data_dim)   # through the data_split_dim can split the mnist picture to sub blocks, the number of sub blocks stands for the transformers' sequence length
     if args.model_type == 'transformer':
-        tModel = my_transformer(data_dim, data_dim, seq_length, args.n_heads, data_dim, args.num_classes).to(device)
+        tModel = my_transformer(data_dim, 32, seq_length, args.n_heads, data_dim*2, args.num_classes).to(device)
+        is_exist = os.path.exists('./cache/train_data_split_{}.mat'.format(args.data_dimension))
+        train_dataset = DatasetMnist(mode='train', split_dim=args.data_split_dim, data_dimension=args.data_dimension,doSplit=not is_exist)
+        is_exist = os.path.exists('./cache/test_data_split_{}.mat'.format(args.data_dimension))
+        test_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension,doSplit=not is_exist)
     elif args.model_type == 'linear':
-        tModel = LinearModel(data_dim, data_dim, n_seq=seq_length, out_dim=args.num_classes).to(device)
+        #tModel = LinearModel(data_dim, data_dim, n_seq=seq_length, out_dim=args.num_classes).to(device)
+        tModel = LinearModel2(data_dim, 64, seq_length, data_dim*2, args.num_classes).to(device)
+        train_dataset = DatasetMnist_noSplit(mode='train')
+        test_dataset = DatasetMnist_noSplit(mode='test')
     else:
         raise ValueError("{} model type is not implemented".format(args.model_type))
     # optimizer = optim.SGD(tModel.parameters(),lr=lr,momentum=mom)
     optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()
-    logger.info("******DataSet Initialize******")
-    train_dataset = DatasetMnist(mode='train', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
-    test_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
+
+    # if args.model_type == 'transformer':
+    #     tModel = my_transformer(data_dim, data_dim, seq_length, args.n_heads, data_dim, args.num_classes).to(device)
+    # elif args.model_type == 'linear':
+    #     tModel = LinearModel(data_dim, data_dim, n_seq=seq_length, out_dim=args.num_classes).to(device)
+    # else:
+    #     raise ValueError("{} model type is not implemented".format(args.model_type))
+    # # optimizer = optim.SGD(tModel.parameters(),lr=lr,momentum=mom)
+    # optimizer = optim.Adam(tModel.parameters(), lr=args.lr)
+    # loss_fn = nn.CrossEntropyLoss()
+    # logger.info("******DataSet Initialize******")
+    # train_dataset = DatasetMnist(mode='train', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
+    # test_dataset = DatasetMnist(mode='test', split_dim=args.data_split_dim, data_dimension=args.data_dimension)
     train_loader = DataLoader(
         train_dataset, 
         batch_size=args.batch_size, 
@@ -165,7 +203,7 @@ if __name__ == '__main__':
     else:
         args, = parser.parse_args_into_dataclasses()
 
-    check_root = os.path.join(args.data_root, 'train_data_{}'.format(args.data_dimension))
+    check_root = os.path.join(args.data_root, 'train_data_{}.txt'.format(args.data_dimension))
     if not os.path.exists(check_root):
         data_preprocess(args)
 

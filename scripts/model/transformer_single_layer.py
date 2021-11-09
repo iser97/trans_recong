@@ -45,7 +45,7 @@ class Manual_Mult_Attention(nn.Module):
 
         context = context.transpose(1,2).contiguous().view(batch_size, -1, self.nheads * self.head_dim)
         output = self.wo(context)
-        # output + residual
+        output + residual
         return self.norm_layer(output), attn
 
 class PoswiseFeedForward(nn.Module):
@@ -73,16 +73,23 @@ def positionalencoding1d(d_model, length):
     :param length: length of positions
     :return: length*d_model position matrix
     """
-    if d_model % 2 != 0:
-        raise ValueError("Cannot use sin/cos positional encoding with "
-                         "odd dim (got dim={:d})".format(d_model))
+    # if d_model % 2 != 0:
+    #     raise ValueError("Cannot use sin/cos positional encoding with "
+    #                      "odd dim (got dim={:d})".format(d_model))
+    # pe = torch.zeros(length, d_model)
+    # position = torch.arange(0, length).unsqueeze(1)
+    # div_term = torch.exp((torch.arange(0, d_model, 2, dtype=torch.float) *
+    #                      -(math.log(10000.0) / d_model)))
+    # pe[:, 0::2] = torch.sin(position.float() * div_term)
+    # pe[:, 1::2] = torch.cos(position.float() * div_term)
+
     pe = torch.zeros(length, d_model)
     position = torch.arange(0, length).unsqueeze(1)
-    div_term = torch.exp((torch.arange(0, d_model, 2, dtype=torch.float) *
-                         -(math.log(10000.0) / d_model)))
-    pe[:, 0::2] = torch.sin(position.float() * div_term)
-    pe[:, 1::2] = torch.cos(position.float() * div_term)
-
+    div_term = torch.exp(torch.arange(0.0, d_model, 2) *
+                            -(math.log(1000.0) / d_model))
+    pe[:, 0::2] = torch.sin(position * div_term)
+    pe[:, 1::2] = torch.cos(position * div_term[0: (d_model)//2])
+    
     return pe
 
 class PositionalEncoding(nn.Module):
@@ -123,7 +130,7 @@ class my_transformer(nn.Module):
         self.positionAdd = PositionalEncoding(d_dim)
         self.attnModel = Manual_Mult_Attention(d_dim, k_dim, nheads, n_seq=n_seq)
         self.ffnModel = PoswiseFeedForward(d_dim, mid_dim, n_seq=n_seq)
-        self.ouputLayer = nn.Linear(d_dim, output_dim, bias=False)
+        self.ouputLayer = nn.Linear(d_dim*n_seq, output_dim, bias=False)
 
     def forward(self, input):
         '''
@@ -132,7 +139,8 @@ class my_transformer(nn.Module):
         x = self.positionAdd(input)
         context, attn = self.attnModel(Q = x, K = x, V = x)
         ffn = self.ffnModel(context)
-        pre_data = torch.mean(ffn, dim=-2)
+        # pre_data = torch.mean(ffn, dim=-2)
+        pre_data = torch.flatten(ffn,start_dim=-2,end_dim=-1)
         output = self.ouputLayer(pre_data)
         return output
 

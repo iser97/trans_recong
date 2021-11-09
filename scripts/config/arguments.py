@@ -8,7 +8,7 @@ class Arguments:
         default=0.0001, metadata={"help": "learning rate"}
     )
     batch_size: Optional[int] = field(
-        default=64, metadata={"help": "batch size"}
+        default=256, metadata={"help": "batch size"}
     )
     n_epochs: Optional[int] = field(
         default=100, metadata={"help": "training epochs"}
@@ -16,15 +16,15 @@ class Arguments:
     num_classes: Optional[int] = field(
         default=10, metadata={"help": "classes for mnist is 10"}
     )
-    ### Data parameters
+    ### Data parameter
     data_root: Optional[str] = field(
         default="./cache/", metadata={"help": "data root"}
     )
     data_split_dim: Optional[int] = field(
-        default=4, metadata={"help": "split mnist pictures to sub blocks"}
+        default=7, metadata={"help": "split mnist pictures to sub blocks"}
     )
     data_dimension: Optional[int] = field(
-        default=28, metadata={"help": "data dimensions, for our mnist is 8"}
+        default=8, metadata={"help": "data dimensions, for our mnist is 8"}
     )
     ### Model parameters
     n_heads: Optional[int] = field(
@@ -37,5 +37,5 @@ class Arguments:
         default="./cache/checkpoint.pth.tar", metadata={"help": "model save root"}
     )
     gama_scale: float = field(
-        default=0.0001, metadata={"help": "rate to scale noise weight"}
+        default=0.001, metadata={"help": "rate to scale noise weight"}
     )

@@ -45,6 +45,27 @@ class LinearModel(nn.Module):
             input = layer(input)
         return input
 
+
+class LinearModel2(nn.Module):
+    def __init__(self, d_dim, k_dim, n_seq, mid_dim, output_dim):
+        super().__init__()
+        self.layers = nn.ModuleList()
+
+        i_dim = d_dim*n_seq
+        o_dim = (3*d_dim*k_dim + k_dim*d_dim + d_dim*mid_dim + mid_dim*d_dim + output_dim*i_dim)//(i_dim + output_dim)
+        self.layers.append(nn.Sequential(
+            nn.Linear(i_dim, o_dim),
+            nn.ReLU(),
+            nn.Dropout(0.2)))
+        
+        self.layers.append(nn.Linear(o_dim, output_dim))
+        
+    def forward(self, input):
+        for layer in self.layers:
+            input = layer(input)
+        return input
+
+
 if __name__ == '__main__':
     model = LinearModel(768, 768, 32, 10)
     input = torch.zeros(size=[10, 32, 768])
